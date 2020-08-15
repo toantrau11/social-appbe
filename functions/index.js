@@ -64,6 +64,13 @@ app.post('/scream', (req, res) => {
     });
 });
 
+/**
+ * VALIDATE INPUT
+ */
+const regEx = /^[a-z0-9!#$%&'*+/=?^_`{|}~-]+(?:\.[a-z0-9!#$%&'*+/=?^_`{|}~-]+)*@(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.)+[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$/;
+const isEmpty = stringData => stringData.trim() === '';
+const isEmail = email => email.match(regEx);
+// Signup route
 app.post('/signup', async (req, res) => {
   const newUser = {
     email: req.body.email,
@@ -71,6 +78,33 @@ app.post('/signup', async (req, res) => {
     confirmPassword: req.body.confirmPassword,
     handle: req.body.handle
   };
+
+  let errors = {};
+  // Email validate
+  if (isEmpty(newUser.email)) {
+    errors.email = 'Email not be empty.';
+  }
+  if (!isEmail(newUser.email)) {
+    errors.email = 'Must be a valid email address.';
+  }
+
+  // Password validate
+  if (isEmpty(newUser.password)) {
+    errors.password = 'Password not be empty.';
+  }
+  // confirm password
+  if (newUser.password !== newUser.confirmPassword) {
+    errors.password = 'Password not match';
+  }
+
+  // username validate
+  if (isEmpty(newUser.handle)) {
+    errors.handle = 'Handle not be empty.';
+  }
+
+  // If errors object not empty <=> has any errors
+  if (Object.keys(errors).length > 0) return res.status(400).json(errors);
+  console.log(`ERRORS`, JSON.stringify(errors, undefined, 2));
 
   let token, userId;
   // Validate data
