@@ -12,17 +12,20 @@ const firebaseConfig = {
   appId: '1:562804129364:web:4c44e4279249d63ab877c1'
 };
 const firebase = require('firebase');
+var serviceAccount = require('./key/admin.json');
 
-admin.initializeApp();
+admin.initializeApp({
+  credential: admin.credential.applicationDefault(serviceAccount),
+  databaseURL: 'https://social-app-b7a06.firebaseio.com'
+});
+const db = admin.firestore();
 
 // Initialize Firebase
 firebase.initializeApp(firebaseConfig);
 
 // get screams
 app.get('/screams', (req, res) => {
-  admin
-    .firestore()
-    .collection('screams')
+  db.collection('screams')
     .orderBy('createdAt', 'desc')
     .get()
     .then(data => {
@@ -50,9 +53,7 @@ app.post('/scream', (req, res) => {
     createdAt: new Date().toISOString()
   };
 
-  admin
-    .firestore()
-    .collection('screams')
+  db.collection('screams')
     .add(newScream)
     .then(doc => {
       res.json({ message: `document ${doc.id} created successfully.` });
@@ -63,7 +64,7 @@ app.post('/scream', (req, res) => {
     });
 });
 
-app.post('/signup', (req, res) => {
+app.post('/signup', async (req, res) => {
   const newUser = {
     email: req.body.email,
     password: req.body.password,
@@ -71,18 +72,35 @@ app.post('/signup', (req, res) => {
     handle: req.body.handle
   };
 
-  firebase
-    .auth()
-    .createUserWithEmailAndPassword(newUser.email, newUser.password)
+  // Validate data
+  db.doc(`/users/${newUser.handle}`)
+    .get()
+    .then(doc => {
+      if (doc.exists) {
+        return res
+          .status(400)
+          .json({ handle: 'this handle is already taken.' });
+      } else {
+        return firebase
+          .auth()
+          .createUserWithEmailAndPassword(newUser.email, newUser.password);
+      }
+    })
     .then(data => {
-      return res.status(201).json({ message: `user ${data.user.uid} signed.` });
+      return data.user.getIdToken();
+    })
+    .then(token => {
+      return res.status(201).json({ token });
     })
     .catch(error => {
-      console.error(error);
       // Handle Errors here.
       const errorCode = error.code;
       const errorMessage = error.message;
-      return res.status(500).json({ error: error.code });
+      if (errorCode === 'auth/email-already-in-use') {
+        return res.status(400).json({ email: 'Email is already in use' });
+      } else {
+        return res.status(500).json({ error: error });
+      }
     });
 });
 exports.api = functions.https.onRequest(app);
