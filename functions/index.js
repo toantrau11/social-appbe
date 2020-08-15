@@ -150,4 +150,36 @@ app.post('/signup', async (req, res) => {
     });
 });
 
+// Login route
+app.post('/login', (req, res) => {
+  const user = {
+    email: req.body.email,
+    password: req.body.password
+  };
+  // validate input data
+  let errors = {};
+  if (isEmpty(user.email)) errors.email = 'Email must not empty';
+  if (isEmpty(user.password)) errors.email = 'Password must not empty';
+
+  if (Object.keys(errors).length > 0) return res.status(400).json(errors);
+
+  firebase
+    .auth()
+    .signInWithEmailAndPassword(user.email, user.password)
+    .then(data => {
+      return data.user.getIdToken();
+    })
+    .then(token => {
+      return res.status(201).json({ token });
+    })
+    .catch(err => {
+      const errorCode = err.code;
+      if (['auth/invalid-email', 'auth/wrong-password'].includes(errorCode)) {
+        return res
+          .status(403)
+          .json({ general: 'Wrong credentials, please try again!.' });
+      } else return res.status(500).json({ error: err.code });
+    });
+});
+
 exports.api = functions.https.onRequest(app);
