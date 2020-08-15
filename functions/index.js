@@ -46,10 +46,42 @@ app.get('/screams', (req, res) => {
     });
 });
 
-app.post('/scream', (req, res) => {
+const FBAuth = (req, res, next) => {
+  let idToken;
+  if (
+    req.headers.authorization &&
+    req.headers.authorization.split(' ')[0] === 'Bearer'
+  ) {
+    idToken = req.headers.authorization.split(' ')[1];
+  } else {
+    return res.status(403).json({ error: 'Unauthorized' });
+  }
+
+  admin
+    .auth()
+    .verifyIdToken(idToken)
+    .then(decodedToken => {
+      req.user = decodedToken;
+      return db
+        .collection('users')
+        .where('userId', '==', req.user.uid)
+        .limit(1)
+        .get();
+    })
+    .then(data => {
+      req.user.handle = data.docs[0].data().handle;
+      return next();
+    })
+    .catch(error => {
+      return res.status(403).json(error);
+    });
+};
+
+// Post a scream
+app.post('/scream', FBAuth, (req, res) => {
   const newScream = {
     body: req.body.body,
-    userHandle: res.body.userHandle,
+    userHandle: req.user.handle,
     createdAt: new Date().toISOString()
   };
 
@@ -104,7 +136,6 @@ app.post('/signup', async (req, res) => {
 
   // If errors object not empty <=> has any errors
   if (Object.keys(errors).length > 0) return res.status(400).json(errors);
-  console.log(`ERRORS`, JSON.stringify(errors, undefined, 2));
 
   let token, userId;
   // Validate data
