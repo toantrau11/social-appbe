@@ -7,9 +7,51 @@ firebase.initializeApp(config);
 
 const {
   validateSignUpData,
-  validateLoginData
+  validateLoginData,
+  reduceUserDetails
 } = require('../utils/validations');
 
+exports.getAuthenticatedUser = (req, res) => {
+  let userData = {}; // credentials: {} and likes [{}, {}]
+
+  db.doc(`/users/${req.user.handle}`)
+    .get()
+    .then(doc => {
+      if (doc.exists) {
+        userData.credentials = doc.data();
+        return db
+          .collection('likes')
+          .where('userHandle', '==', req.user.handle)
+          .get();
+      }
+    })
+    .then(data => {
+      userData.like = [];
+      data.forEach(doc => {
+        userData.like.push(doc.data());
+      });
+
+      return res.json(userData);
+    })
+    .catch(err => {
+      return res.status(500).json({ error: err.code });
+    });
+};
+
+// Add user detail
+exports.addUserDetails = (req, res) => {
+  const userDetails = reduceUserDetails(req.body);
+
+  db.doc(`/users/${req.user.handle}`)
+    .update(userDetails)
+    .then(() => {
+      res.json({ message: 'Details added successfully.' });
+    })
+    .catch(err => {
+      console.log('error: ', err);
+      res.status(500).json({ error: err.code });
+    });
+};
 // Upload a profile image for user
 exports.uploadImage = (req, res) => {
   const BusBoy = require('busboy');
@@ -23,9 +65,9 @@ exports.uploadImage = (req, res) => {
   let imageFileName;
 
   busboy.on('file', (fieldname, file, filename, encoding, mimetype) => {
-    if (mimetype !== 'image/jpeg' && mimetype !== 'image/png') {
-      return res.status(400).json({ error: 'Wrong file type submitted' });
-    }
+    // if (mimetype !== 'image/jpeg' && mimetype !== 'image/png') {
+    //   return res.status(400).json({ error: 'Wrong file type submitted' });
+    // }
     // my.image.png => ['my', 'image', 'png']
     const imageExtension = filename.split('.')[filename.split('.').length - 1];
     // 32756238461724837.png

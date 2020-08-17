@@ -45,3 +45,18 @@ exports.validateSignUpData = data => {
     valid: Object.keys(errors).length === 0 ? true : false
   };
 };
+
+exports.reduceUserDetails = data => {
+  let userDetail = {};
+  if (!isEmpty(data.bio.trim())) userDetail.bio = data.bio;
+
+  if (!isEmpty(data.website.trim())) {
+    if (data.website.trim().substring(0, 4) !== 'http') {
+      userDetail.website = `http://${data.website.trim()}`;
+    } else userDetail.website = data.website;
+  }
+
+  if (!isEmpty(data.location.trim())) userDetail.location = data.location;
+
+  return userDetail;
+};
